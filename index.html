@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareerPulse - Job Portal & Resume Builder</title>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React 18 & ReactDOM CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- html2pdf.js CDN for client-side PDF download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    h1, h2, h3, .heading-font {
+      font-family: 'Outfit', 'Inter', sans-serif;
+    }
+
+    /* Print styles for Resume */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #resume, #resume * {
+        visibility: visible;
+      }
+      #resume {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 30px !important;
+        box-shadow: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #6366f1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col bg-slate-950 text-slate-100">
+  <div id="root" class="h-full flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    // Theme Configurations for Whole App
+    const appThemes = {
+      midnight: {
+        id: "midnight",
+        name: "Midnight Cyber",
+        badge: "🔮",
+        bg: "bg-slate-950",
+        headerBg: "bg-slate-900/90",
+        cardBg: "bg-slate-900/80 hover:border-indigo-500/50",
+        border: "border-slate-800",
+        gradient: "from-indigo-600 via-purple-600 to-pink-600",
+        btnPrimary: "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25",
+        textAccent: "text-indigo-400",
+        pillActive: "bg-indigo-600 text-white"
+      },
+      emerald: {
+        id: "emerald",
+        name: "Emerald Luxe",
+        badge: "🌿",
+        bg: "bg-emerald-950/95",
+        headerBg: "bg-emerald-900/90",
+        cardBg: "bg-emerald-900/50 hover:border-teal-500/50",
+        border: "border-emerald-800/60",
+        gradient: "from-emerald-600 via-teal-600 to-cyan-600",
+        btnPrimary: "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25",
+        textAccent: "text-emerald-400",
+        pillActive: "bg-emerald-600 text-white"
+      },
+      crimson: {
+        id: "crimson",
+        name: "Crimson Velvet",
+        badge: "🔥",
+        bg: "bg-rose-950/95",
+        headerBg: "bg-rose-900/90",
+        cardBg: "bg-rose-900/50 hover:border-rose-500/50",
+        border: "border-rose-800/60",
+        gradient: "from-rose-600 via-pink-600 to-amber-600",
+        btnPrimary: "bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-lg shadow-rose-500/25",
+        textAccent: "text-rose-400",
+        pillActive: "bg-rose-600 text-white"
+      },
+      sapphire: {
+        id: "sapphire",
+        name: "Royal Sapphire",
+        badge: "💎",
+        bg: "bg-slate-950",
+        headerBg: "bg-slate-900/90",
+        cardBg: "bg-slate-900/80 hover:border-blue-500/50",
+        border: "border-blue-900/60",
+        gradient: "from-blue-600 via-blue-700 to-cyan-500",
+        btnPrimary: "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-blue-500/25",
+        textAccent: "text-blue-400",
+        pillActive: "bg-blue-600 text-white"
+      }
+    };
+
+    // Color Styles for Resume Output Component
+    const resumeColorStyles = {
+      blue: { primary: "#1d4ed8", border: "#2563eb", title: "#0f172a" },
+      emerald: { primary: "#047857", border: "#10b981", title: "#064e3b" },
+      purple: { primary: "#7e22ce", border: "#9333ea", title: "#3b0764" },
+      crimson: { primary: "#be123c", border: "#f43f5e", title: "#4c0519" },
+      charcoal: { primary: "#334155", border: "#475569", title: "#0f172a" }
+    };
+
+    // Default User Resume Data (Exact structure requested)
+    const initialUserData = {
+      name: "John Doe",
+      email: "john@gmail.com",
+      phone: "+91 9876543210",
+      address: "Patiala, Punjab",
+      education: "B.Tech CSE - Punjabi University",
+      skills: "React, Bootstrap, JavaScript, HTML, CSS",
+      projects: "Responsive Job Portal, E-Commerce Dashboard, Portfolio App",
+      experience: "Fresher"
+    };
+
+    // Sample Jobs Database
+    const initialJobs = [
+      {
+        id: 1,
+        title: "Frontend React Developer",
+        company: "TechNova Solutions",
+        logo: "⚡",
+        location: "Chandigarh / Remote",
+        type: "Full-Time",
+        category: "Frontend",
+        salary: "₹6.5 LPA - ₹9.0 LPA",
+        posted: "2 days ago",
+        skills: ["React", "JavaScript", "HTML", "CSS", "Tailwind"],
+        description: "Looking for an energetic Frontend Engineer skilled in React, modern JavaScript, and UI frameworks to build interactive web applications.",
+        requirements: [
+          "1+ years or solid project experience with React.js & Redux/Context API.",
+          "Proficiency in responsive web design, HTML5, CSS3, and JavaScript ES6+.",
+          "Strong understanding of REST APIs and UI component libraries."
+        ]
+      },
+      {
+        id: 2,
+        title: "Full Stack Engineer (Node + React)",
+        company: "CloudScale Inc.",
+        logo: "☁️",
+        location: "Mohali, Punjab",
+        type: "Full-Time",
+        category: "Full Stack",
+        salary: "₹8.0 LPA - ₹12.0 LPA",
+        posted: "1 day ago",
+        skills: ["React", "Node.js", "Express", "MongoDB", "JavaScript"],
+        description: "Join our full-stack team to build scalable microservices and intuitive user-facing web portals.",
+        requirements: [
+          "Hands-on development experience in Node.js, Express, and React.js.",
+          "Knowledge of database design (MongoDB, PostgreSQL).",
+          "Understanding of CI/CD pipelines and deployment best practices."
+        ]
+      },
+      {
+        id: 3,
+        title: "UI/UX Designer & Web Developer",
+        company: "PixelCraft Studios",
+        logo: "🎨",
+        location: "Remote",
+        type: "Remote",
+        category: "UI/UX",
+        salary: "₹5.0 LPA - ₹7.5 LPA",
+        posted: "3 days ago",
+        skills: ["Figma", "HTML", "CSS", "Bootstrap", "JavaScript"],
+        description: "Create visually stunning website layouts, interactive wireframes, and translate design systems into clean HTML/CSS components.",
+        requirements: [
+          "Strong design portfolio showcasing UI/UX design and responsive landing pages.",
+          "Proficiency in Figma, Adobe XD, HTML5, CSS3, and Bootstrap/Tailwind.",
+          "Good sense of typography, spatial layout, and visual aesthetics."
+        ]
+      },
+      {
+        id: 4,
+        title: "Junior Software Developer Intern",
+        company: "Apex Code Labs",
+        logo: "🚀",
+        location: "Patiala, Punjab",
+        type: "Internship",
+        category: "Frontend",
+        salary: "₹25,000 / month",
+        posted: "Just now",
+        skills: ["JavaScript", "HTML", "CSS", "Git", "React"],
+        description: "Great opportunity for freshers and computer science graduates to work on real-world web application projects under senior guidance.",
+        requirements: [
+          "Degree in B.Tech CSE, BCA, MCA, or related field.",
+          "Solid grasp of web development basics (HTML, CSS, JS).",
+          "Eagerness to learn React and modern JavaScript development."
+        ]
+      },
+      {
+        id: 5,
+        title: "Backend Node.js Developer",
+        company: "DataStream Systems",
+        logo: "📊",
+        location: "Gurugram, Haryana",
+        type: "Hybrid",
+        category: "Backend",
+        salary: "₹9.0 LPA - ₹14.0 LPA",
+        posted: "4 days ago",
+        skills: ["Node.js", "Express", "REST API", "SQL", "Redis"],
+        description: "Architect backend APIs, handle real-time streaming data, and optimize system queries for high-concurrency systems.",
+        requirements: [
+          "2+ years experience building RESTful APIs in Node.js.",
+          "Experience with relational databases (MySQL/PostgreSQL) and caching.",
+          "Familiarity with serverless architectures or Docker is a plus."
+        ]
+      },
+      {
+        id: 6,
+        title: "Mobile App Developer (React Native)",
+        company: "NextApp Mobility",
+        logo: "📱",
+        location: "Noida / Remote",
+        type: "Remote",
+        category: "Mobile",
+        salary: "₹7.0 LPA - ₹10.5 LPA",
+        posted: "5 days ago",
+        skills: ["React Native", "JavaScript", "Redux", "Android/iOS"],
+        description: "Build cross-platform mobile apps for iOS and Android using React Native, delivering fast 60fps animations and smooth offline access.",
+        requirements: [
+          "Experience building React Native applications with clean code structure.",
+          "Good understanding of mobile UI design patterns and state management."
+        ]
+      }
+    ];
+
+    // ==========================================
+    // EXACT REQUESTED RESUME COMPONENT (React.forwardRef)
+    // ==========================================
+    const Resume = React.forwardRef((props, ref) => {
+      const user = props.userData || props.user || initialUserData;
+      const themeKey = props.resumeTheme || "blue";
+      const theme = resumeColorStyles[themeKey] || resumeColorStyles.blue;
+
+      return (
+        <div 
+          ref={ref} 
+          id="resume" 
+          style={{ 
+            padding: "36px", 
+            background: "#ffffff", 
+            color: "#1e293b", 
+            fontFamily: "'Inter', sans-serif",
+            borderRadius: "12px",
+            boxShadow: "0 20px 30px -10px rgba(0, 0, 0, 0.15)",
+            borderTop: `6px solid ${theme.border}`
+          }}
+        >
+          <h2 style={{ fontSize: "30px", fontWeight: "800", color: theme.title, marginBottom: "4px", letterSpacing: "-0.5px" }}>{user.name}</h2>
+          <hr style={{ margin: "14px 0", border: "none", borderTop: `3px solid ${theme.border}` }} />
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "16px" }}>
+            <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155" }}><strong>Email:</strong> {user.email}</p>
+            <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155" }}><strong>Phone:</strong> {user.phone}</p>
+            <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155", gridColumn: "span 2" }}><strong>Address:</strong> {user.address}</p>
+          </div>
+
+          <h4 style={{ marginTop: "22px", marginBottom: "6px", fontSize: "16px", fontWeight: "700", color: theme.primary, borderBottom: `1px solid ${theme.border}40`, paddingBottom: "4px" }}>Education</h4>
+          <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>{user.education}</p>
+
+          <h4 style={{ marginTop: "22px", marginBottom: "6px", fontSize: "16px", fontWeight: "700", color: theme.primary, borderBottom: `1px solid ${theme.border}40`, paddingBottom: "4px" }}>Skills</h4>
+          <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>{user.skills}</p>
+
+          <h4 style={{ marginTop: "22px", marginBottom: "6px", fontSize: "16px", fontWeight: "700", color: theme.primary, borderBottom: `1px solid ${theme.border}40`, paddingBottom: "4px" }}>Projects</h4>
+          <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-line" }}>{user.projects}</p>
+
+          <h4 style={{ marginTop: "22px", marginBottom: "6px", fontSize: "16px", fontWeight: "700", color: theme.primary, borderBottom: `1px solid ${theme.border}40`, paddingBottom: "4px" }}>Experience</h4>
+          <p style={{ margin: "4px 0", fontSize: "14px", color: "#334155", lineHeight: "1.6", whiteSpace: "pre-line" }}>{user.experience}</p>
+        </div>
+      );
+    });
+
+    // Main App Component
+    function App() {
+      const [activeTab, setActiveTab] = useState('jobs'); 
+      const [currentAppTheme, setCurrentAppTheme] = useState('midnight'); // 'midnight' | 'emerald' | 'crimson' | 'sapphire'
+      const [currentResumeTheme, setCurrentResumeTheme] = useState('blue'); // 'blue' | 'emerald' | 'purple' | 'crimson' | 'charcoal'
+
+      const activeTheme = appThemes[currentAppTheme] || appThemes.midnight;
+
+      // LocalStorage persistence for user resume data
+      const [userData, setUserData] = useState(() => {
+        const saved = localStorage.getItem('careerpulse_userData');
+        return saved ? JSON.parse(saved) : initialUserData;
+      });
+
+      // LocalStorage persistence for job postings
+      const [jobsList, setJobsList] = useState(() => {
+        const saved = localStorage.getItem('careerpulse_jobs');
+        return saved ? JSON.parse(saved) : initialJobs;
+      });
+
+      // LocalStorage persistence for applied jobs
+      const [appliedJobs, setAppliedJobs] = useState(() => {
+        const saved = localStorage.getItem('careerpulse_applied');
+        return saved ? JSON.parse(saved) : [];
+      });
+
+      const [searchTerm, setSearchTerm] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('All');
+      const [selectedType, setSelectedType] = useState('All');
+      const [applyingJob, setApplyingJob] = useState(null); 
+      const [showPostJobModal, setShowPostJobModal] = useState(false);
+      const [showThemePicker, setShowThemePicker] = useState(false);
+      const [toast, setToast] = useState(null);
+
+      const [newJobForm, setNewJobForm] = useState({
+        title: "", company: "", location: "", type: "Full-Time", category: "Frontend", salary: "", skills: "", description: "", requirements: ""
+      });
+
+      const resumeRef = useRef(null);
+
+      useEffect(() => {
+        localStorage.setItem('careerpulse_userData', JSON.stringify(userData));
+      }, [userData]);
+
+      useEffect(() => {
+        localStorage.setItem('careerpulse_applied', JSON.stringify(appliedJobs));
+      }, [appliedJobs]);
+
+      useEffect(() => {
+        localStorage.setItem('careerpulse_jobs', JSON.stringify(jobsList));
+      }, [jobsList]);
+
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }, [activeTab, applyingJob, showPostJobModal, showThemePicker]);
+
+      const showToast = (message) => {
+        setToast(message);
+        setTimeout(() => setToast(null), 4000);
+      };
+
+      const handleDownloadPDF = () => {
+        const element = resumeRef.current || document.getElementById('resume');
+        if (!element) {
+          showToast("Error: Resume component reference not found!");
+          return;
+        }
+
+        const opt = {
+          margin:       [10, 10, 10, 10],
+          filename:     `${userData.name.replace(/\s+/g, '_')}_Resume.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, logging: false },
+          jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        if (window.html2pdf) {
+          window.html2pdf().set(opt).from(element).save();
+          showToast(`📄 Downloading ${userData.name}'s Resume PDF...`);
+        } else {
+          window.print();
+        }
+      };
+
+      const handleConfirmApply = () => {
+        if (!applyingJob) return;
+        
+        const applicationRecord = {
+          ...applyingJob,
+          appliedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          status: 'Under Review'
+        };
+
+        setAppliedJobs([applicationRecord, ...appliedJobs]);
+        handleDownloadPDF();
+        showToast(`🎉 Application submitted for ${applyingJob.title} at ${applyingJob.company}!`);
+        setApplyingJob(null);
+      };
+
+      const handleCreateJob = (e) => {
+        e.preventDefault();
+        if (!newJobForm.title || !newJobForm.company || !newJobForm.salary) {
+          showToast("Please fill in Job Title, Company Name, and Salary.");
+          return;
+        }
+
+        const createdJob = {
+          id: Date.now(),
+          title: newJobForm.title,
+          company: newJobForm.company,
+          logo: "💼",
+          location: newJobForm.location || "Remote",
+          type: newJobForm.type,
+          category: newJobForm.category,
+          salary: newJobForm.salary,
+          posted: "Just now",
+          skills: newJobForm.skills ? newJobForm.skills.split(',').map(s => s.trim()) : ["JavaScript", "React"],
+          description: newJobForm.description || "Exciting opportunity to join our engineering team.",
+          requirements: newJobForm.requirements ? newJobForm.requirements.split('\n').filter(Boolean) : ["Relevant industry experience."]
+        };
+
+        setJobsList([createdJob, ...jobsList]);
+        setShowPostJobModal(false);
+        showToast(`💼 Job "${createdJob.title}" posted successfully!`);
+        setNewJobForm({
+          title: "", company: "", location: "", type: "Full-Time", category: "Frontend", salary: "", skills: "", description: "", requirements: ""
+        });
+      };
+
+      const filteredJobs = jobsList.filter(job => {
+        const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              job.skills.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesCategory = selectedCategory === 'All' || job.category === selectedCategory;
+        const matchesType = selectedType === 'All' || job.type === selectedType;
+        return matchesSearch && matchesCategory && matchesType;
+      });
+
+      return (
+        <div className={`h-full flex flex-col ${activeTheme.bg} text-slate-100 overflow-hidden transition-all duration-300`}>
+          
+          {/* Toast Notification */}
+          {toast && (
+            <div className="fixed top-5 right-5 z-50 bg-indigo-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
+              <span className="text-lg">✨</span>
+              <span className="font-medium text-sm">{toast}</span>
+            </div>
+          )}
+
+          {/* Header Navigation Bar */}
+          <header className={`${activeTheme.headerBg} backdrop-blur-md border-b ${activeTheme.border} px-6 py-3.5 flex items-center justify-between z-10 shadow-lg`}>
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('jobs')}>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${activeTheme.gradient} flex items-center justify-center text-white text-xl font-bold shadow-lg`}>
+                💼
+              </div>
+              <div>
+                <h1 className="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
+                  CareerPulse <span className="bg-indigo-500/10 text-indigo-400 text-xs px-2 py-0.5 rounded-full border border-indigo-500/20 font-semibold">Pro</span>
+                </h1>
+                <p className="text-xs text-slate-400">Job Portal & PDF Resume Hub</p>
+              </div>
+            </div>
+
+            {/* Nav Tabs */}
+            <nav className="flex items-center gap-2 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800/80">
+              <button 
+                onClick={() => setActiveTab('jobs')} 
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+                  activeTab === 'jobs' 
+                    ? activeTheme.btnPrimary 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                🔍 Explore Jobs
+              </button>
+              <button 
+                onClick={() => setActiveTab('applications')} 
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 relative ${
+                  activeTab === 'applications' 
+                    ? activeTheme.btnPrimary 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                📋 My Applications
+                {appliedJobs.length > 0 && (
+                  <span className="bg-white text-slate-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-extrabold">
+                    {appliedJobs.length}
+                  </span>
+                )}
+              </button>
+              <button 
+                onClick={() => setActiveTab('resume')} 
+                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+                  activeTab === 'resume' 
+                    ? activeTheme.btnPrimary 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                }`}
+              >
+                📄 Resume Builder & PDF
+              </button>
+            </nav>
+
+            {/* Right Header Controls & Color Palette Selector */}
+            <div className="flex items-center gap-3">
+              
+              {/* Theme Palette Switcher Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowThemePicker(!showThemePicker)}
+                  className="bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+                >
+                  <span>{activeTheme.badge}</span> Theme ({activeTheme.name}) 🎨
+                </button>
+
+                {showThemePicker && (
+                  <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-2xl z-50 space-y-2">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Portal UI Color Palette</p>
+                    {Object.values(appThemes).map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setCurrentAppTheme(t.id);
+                          setShowThemePicker(false);
+                          showToast(`🎨 Switched UI Theme to ${t.name}`);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition ${
+                          currentAppTheme === t.id ? 'bg-slate-800 text-white font-bold' : 'text-slate-300 hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">{t.badge} {t.name}</span>
+                        {currentAppTheme === t.id && <span className="text-xs">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowPostJobModal(true)}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+              >
+                ➕ Post Job
+              </button>
+
+              <button 
+                onClick={handleDownloadPDF}
+                className="bg-slate-800/90 hover:bg-slate-700 text-blue-400 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+              >
+                ⬇️ PDF Resume
+              </button>
+            </div>
+          </header>
+
+          {/* TAB 1: JOB EXPLORER BOARD */}
+          {activeTab === 'jobs' && (
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+              
+              {/* Hero Banner */}
+              <div className={`relative rounded-3xl bg-gradient-to-r ${activeTheme.gradient} p-8 overflow-hidden shadow-2xl`}>
+                <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div className="relative z-10 max-w-2xl">
+                  <span className="inline-block bg-white/15 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full mb-3 border border-white/20">
+                    ⚡ Verified Engineering & Tech Jobs
+                  </span>
+                  <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-2">
+                    Find Your Next Career Opportunity
+                  </h2>
+                  <p className="text-white/80 text-sm mb-6 leading-relaxed">
+                    Apply instantly using your customized Resume component. Filter through developer roles in Punjab, Chandigarh, and Remote.
+                  </p>
+
+                  {/* Search Bar */}
+                  <div className="flex items-center gap-2 bg-slate-950/90 border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl">
+                    <span className="text-slate-400 pl-3 text-lg">🔍</span>
+                    <input 
+                      type="text" 
+                      placeholder="Search job title, company, or skills (e.g. React, Node, UI/UX)..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="bg-transparent text-white placeholder-slate-500 text-sm focus:outline-none w-full py-1"
+                    />
+                    {searchTerm && (
+                      <button onClick={() => setSearchTerm('')} className="text-slate-500 hover:text-white px-2 text-xs">✕</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters Section */}
+              <div className={`flex flex-wrap items-center justify-between gap-4 ${activeTheme.cardBg} p-4 rounded-2xl border ${activeTheme.border}`}>
+                
+                {/* Category Pills */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400 mr-1">Category:</span>
+                  {['All', 'Frontend', 'Backend', 'Full Stack', 'UI/UX', 'Mobile'].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                        selectedCategory === cat 
+                          ? activeTheme.pillActive 
+                          : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Job Type Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400">Work Type:</span>
+                  <select
+                    value={selectedType}
+                    onChange={e => setSelectedType(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="All">All Types</option>
+                    <option value="Full-Time">Full-Time</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="Internship">Internship</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Job Listings Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredJobs.map(job => {
+                  const isApplied = appliedJobs.some(a => a.id === job.id);
+                  return (
+                    <div 
+                      key={job.id} 
+                      className={`${activeTheme.cardBg} border ${activeTheme.border} rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between group hover:shadow-2xl hover:scale-[1.01] relative overflow-hidden`}
+                    >
+                      <div>
+                        {/* Card Top Header */}
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
+                              {job.logo}
+                            </div>
+                            <div>
+                              <h3 className={`font-bold text-slate-100 group-hover:${activeTheme.textAccent} transition text-base`}>
+                                {job.title}
+                              </h3>
+                              <p className="text-xs text-slate-400">{job.company}</p>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                            job.type === 'Remote' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                            job.type === 'Internship' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                          }`}>
+                            {job.type}
+                          </span>
+                        </div>
+
+                        {/* Location & Salary */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mb-4">
+                          <span className="flex items-center gap-1">📍 {job.location}</span>
+                          <span className="flex items-center gap-1 font-semibold text-slate-200">💰 {job.salary}</span>
+                        </div>
+
+                        {/* Description snippet */}
+                        <p className="text-xs text-slate-400 leading-relaxed mb-4 line-clamp-2">
+                          {job.description}
+                        </p>
+
+                        {/* Skill Badges */}
+                        <div className="flex flex-wrap gap-1.5 mb-6">
+                          {job.skills.map((skill, idx) => (
+                            <span key={idx} className="bg-slate-800/90 text-slate-300 text-[11px] px-2.5 py-1 rounded-md border border-slate-700/60 font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Card Bottom Actions */}
+                      <div className="flex items-center justify-between border-t border-slate-800/80 pt-4 mt-2">
+                        <span className="text-[11px] text-slate-500">Posted {job.posted}</span>
+
+                        {isApplied ? (
+                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                            ✓ Applied
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setApplyingJob(job)}
+                            className={`${activeTheme.btnPrimary} font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1.5`}
+                          >
+                            Apply Now 🚀
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {filteredJobs.length === 0 && (
+                <div className="text-center py-16 bg-slate-900/40 rounded-2xl border border-slate-800">
+                  <span className="text-4xl">🔍</span>
+                  <h3 className="text-lg font-bold text-slate-300 mt-3">No matching jobs found</h3>
+                  <p className="text-xs text-slate-500 mt-1">Try resetting your search or filter keywords.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: MY APPLICATIONS */}
+          {activeTab === 'applications' && (
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+              <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Your Job Applications</h2>
+                    <p className="text-xs text-slate-400 mt-1">Track status of roles you submitted your Resume for.</p>
+                  </div>
+                  <span className="bg-slate-800 text-indigo-400 text-xs px-3 py-1.5 rounded-xl font-bold border border-slate-700">
+                    Total: {appliedJobs.length}
+                  </span>
+                </div>
+
+                {appliedJobs.length === 0 ? (
+                  <div className="text-center py-16 bg-slate-900/50 rounded-2xl border border-slate-800 p-8">
+                    <span className="text-5xl">📄</span>
+                    <h3 className="text-lg font-bold text-slate-200 mt-4">No Applications Submitted Yet</h3>
+                    <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto">
+                      Explore the job board, click "Apply Now" on any role, and your application along with your PDF resume will appear here.
+                    </p>
+                    <button 
+                      onClick={() => setActiveTab('jobs')} 
+                      className={`mt-6 ${activeTheme.btnPrimary} font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg`}
+                    >
+                      Browse Available Jobs
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {appliedJobs.map((app, idx) => (
+                      <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-slate-700 transition">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl">
+                            {app.logo}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-white text-base">{app.title}</h4>
+                            <p className="text-xs text-slate-400">{app.company} • {app.location}</p>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1">
+                              <span>Applied on {app.appliedDate}</span>
+                              <span>•</span>
+                              <span>Salary: {app.salary}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-800 pt-3 md:pt-0">
+                          <span className="bg-indigo-500/10 text-indigo-400 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-500/20">
+                            Status: {app.status}
+                          </span>
+                          <button 
+                            onClick={handleDownloadPDF}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700"
+                          >
+                            📄 Download PDF
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: RESUME BUILDER & PDF EXPORTER */}
+          {activeTab === 'resume' && (
+            <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+              
+              {/* Form Input Side */}
+              <div className="w-full md:w-1/2 bg-slate-900/90 border-r border-slate-800 p-6 overflow-y-auto space-y-5">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      ✏️ Edit Resume Details
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">Update fields to see live preview and generate PDF.</p>
+                  </div>
+                  <button 
+                    onClick={() => setUserData(initialUserData)}
+                    className="text-xs text-indigo-400 hover:underline"
+                  >
+                    Reset Defaults
+                  </button>
+                </div>
+
+                {/* Resume Color Palette Picker */}
+                <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                  <span className="text-xs font-bold text-slate-300 block">🎨 Resume Accent Color Theme:</span>
+                  <div className="flex items-center gap-2">
+                    {Object.keys(resumeColorStyles).map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setCurrentResumeTheme(color)}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition border-2 ${
+                          currentResumeTheme === color ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-80 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: resumeColorStyles[color].primary }}
+                      >
+                        {currentResumeTheme === color && <span className="text-white text-[10px] font-bold">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Full Name</label>
+                    <input 
+                      type="text" 
+                      value={userData.name}
+                      onChange={e => setUserData({...userData, name: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Contact Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        value={userData.email}
+                        onChange={e => setUserData({...userData, email: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Phone</label>
+                      <input 
+                        type="text" 
+                        value={userData.phone}
+                        onChange={e => setUserData({...userData, phone: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Address / Location</label>
+                    <input 
+                      type="text" 
+                      value={userData.address}
+                      onChange={e => setUserData({...userData, address: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Education */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Education</label>
+                    <input 
+                      type="text" 
+                      value={userData.education}
+                      onChange={e => setUserData({...userData, education: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Skills */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Skills</label>
+                    <input 
+                      type="text" 
+                      value={userData.skills}
+                      onChange={e => setUserData({...userData, skills: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Projects */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Projects</label>
+                    <textarea 
+                      rows={3}
+                      value={userData.projects}
+                      onChange={e => setUserData({...userData, projects: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500 leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Experience */}
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Experience</label>
+                    <textarea 
+                      rows={3}
+                      value={userData.experience}
+                      onChange={e => setUserData({...userData, experience: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500 leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={handleDownloadPDF}
+                    className={`w-full ${activeTheme.btnPrimary} font-bold py-3.5 rounded-xl transition shadow-xl flex items-center justify-center gap-2 text-sm`}
+                  >
+                    ⬇️ Download Resume PDF Now
+                  </button>
+                </div>
+              </div>
+
+              {/* Live Preview Side */}
+              <div className="w-full md:w-1/2 bg-slate-950 p-6 md:p-8 overflow-y-auto flex flex-col items-center justify-start">
+                <div className="w-full max-w-[700px]">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                      👁️ Live Resume Preview (Exact Component Output)
+                    </span>
+                    <button 
+                      onClick={handleDownloadPDF}
+                      className="text-xs bg-slate-800 text-indigo-400 hover:bg-slate-700 px-3 py-1 rounded-md border border-slate-700 font-semibold"
+                    >
+                      Export PDF
+                    </button>
+                  </div>
+
+                  {/* Exact React.forwardRef Component rendered */}
+                  <Resume ref={resumeRef} userData={userData} resumeTheme={currentResumeTheme} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* APPLICATION MODAL */}
+          {applyingJob && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 my-8">
+                
+                {/* Modal Header */}
+                <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl">
+                      {applyingJob.logo}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-white">{applyingJob.title}</h3>
+                      <p className="text-xs text-slate-400">{applyingJob.company} • {applyingJob.location}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setApplyingJob(null)} className="text-slate-500 hover:text-white p-1">✕</button>
+                </div>
+
+                {/* Job Info */}
+                <div className="space-y-3 text-xs text-slate-300">
+                  <p><strong className="text-slate-200">Salary:</strong> {applyingJob.salary}</p>
+                  <p><strong className="text-slate-200">Role Description:</strong> {applyingJob.description}</p>
+                  <div>
+                    <strong className="text-slate-200 block mb-1">Key Requirements:</strong>
+                    <ul className="list-disc list-inside space-y-1 text-slate-400">
+                      {applyingJob.requirements.map((req, i) => (
+                        <li key={i}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Attached Resume Preview Header */}
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-indigo-400">📎 Attached Candidate Resume</span>
+                    <span className="text-slate-500">{userData.name} ({userData.email})</span>
+                  </div>
+                  <div className="bg-white text-slate-900 p-4 rounded-xl text-xs space-y-1 shadow-md">
+                    <p className="font-bold text-sm">{userData.name}</p>
+                    <p className="text-[11px]"><strong>Skills:</strong> {userData.skills}</p>
+                    <p className="text-[11px]"><strong>Education:</strong> {userData.education}</p>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+                  <button 
+                    onClick={() => setApplyingJob(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleConfirmApply}
+                    className={`${activeTheme.btnPrimary} px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2`}
+                  >
+                    Submit Application & Download Resume PDF 🚀
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* POST JOB MODAL */}
+          {showPostJobModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5 my-8">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                    💼 Post a New Job Listing
+                  </h3>
+                  <button onClick={() => setShowPostJobModal(false)} className="text-slate-500 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handleCreateJob} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Job Title *</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. Senior React Developer"
+                        value={newJobForm.title}
+                        onChange={e => setNewJobForm({...newJobForm, title: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Company Name *</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. Acme Systems"
+                        value={newJobForm.company}
+                        onChange={e => setNewJobForm({...newJobForm, company: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Location</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Remote / Mohali"
+                        value={newJobForm.location}
+                        onChange={e => setNewJobForm({...newJobForm, location: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Job Type</label>
+                      <select 
+                        value={newJobForm.type}
+                        onChange={e => setNewJobForm({...newJobForm, type: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Full-Time">Full-Time</option>
+                        <option value="Remote">Remote</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Internship">Internship</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1">Category</label>
+                      <select 
+                        value={newJobForm.category}
+                        onChange={e => setNewJobForm({...newJobForm, category: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Frontend">Frontend</option>
+                        <option value="Backend">Backend</option>
+                        <option value="Full Stack">Full Stack</option>
+                        <option value="UI/UX">UI/UX</option>
+                        <option value="Mobile">Mobile</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Salary Range *</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. ₹8.0 LPA - ₹11.0 LPA"
+                      value={newJobForm.salary}
+                      onChange={e => setNewJobForm({...newJobForm, salary: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Skills (comma separated)</label>
+                    <input 
+                      type="text" 
+                      placeholder="React, JavaScript, Tailwind, Redux"
+                      value={newJobForm.skills}
+                      onChange={e => setNewJobForm({...newJobForm, skills: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 font-semibold mb-1">Job Description</label>
+                    <textarea 
+                      rows={2}
+                      placeholder="Summary of responsibilities..."
+                      value={newJobForm.description}
+                      onChange={e => setNewJobForm({...newJobForm, description: e.target.value})}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                    <button 
+                      type="button"
+                      onClick={() => setShowPostJobModal(false)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg"
+                    >
+                      Publish Job Opening 🚀
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
